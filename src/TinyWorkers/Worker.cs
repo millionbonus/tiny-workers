@@ -67,7 +67,6 @@ namespace TinyWorkers
             this.task = Task.Run(() =>
             {
                 Thread.CurrentThread.Priority = this.WorkerPriority;
-                Console.WriteLine(string.Format("{0}:{1} started", ID, Thread.CurrentThread.ManagedThreadId));
                 while (this.IsRunning)
                 {
                     Action.Invoke(this, State);
