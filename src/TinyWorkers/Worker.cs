@@ -48,6 +48,7 @@ namespace TinyWorkers
             this.Action = action;
             this.State = state;
             this.Waitting = waitting;
+            this.WorkerPriority = workerPriority;
         }
 
         public void Start()
