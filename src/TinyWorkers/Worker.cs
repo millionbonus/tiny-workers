@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace TinyWorkers
 {
-    public class Worker<TState>
+    public class Worker<TState> where TState: class, new()
     {
         public static List<Worker<TState>> CreateWorkers(int workNumber, Action<Worker<TState>, TState> action, 
                                                     Action<Worker<TState>, TState> waitting = null, 
@@ -110,7 +110,7 @@ namespace TinyWorkers
 
         }
 
-        public void Stop(int millisecondsTimeout)
+        public void Stop(int millisecondsTimeout = -1)
         {
             this.task.Wait(millisecondsTimeout);
             this.task.Dispose();
