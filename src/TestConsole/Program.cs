@@ -16,6 +16,16 @@ namespace TestConsole
 
     class Program
     {
+        private static void onStarted (object o, WorkerEventArgs<CustomState> e) 
+        {
+            Console.WriteLine($"worker {((Worker<CustomState>)o).ID} started");
+        }
+
+        private static void onStopped (object o, WorkerEventArgs<CustomState> e) 
+        {
+            Console.WriteLine($"worker {((Worker<CustomState>)o).ID} stopped");
+        }
+
         static void Main(string[] args)
         {
             var workers = Worker<CustomState>.CreateWorkers(10, (worker, state) =>
@@ -25,9 +35,12 @@ namespace TestConsole
             });
 
             workers.ForEach((worker)=> {
+                worker.Started += onStarted;
+                worker.Stopped += onStopped;
                 worker.State.state1 = Guid.NewGuid().ToString();
                 worker.Start();
             });
+
 
             Console.ReadKey();
         }
