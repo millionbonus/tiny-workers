@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace TinyWorkers
 {
-    public class Worker<TState>
+    public class Worker<TState> where TState: class, new()
     {
         public static List<Worker<TState>> CreateWorkers(int workNumber, Action<Worker<TState>, TState> action, 
                                                     Action<Worker<TState>, TState> waitting = null, 
@@ -41,6 +41,13 @@ namespace TinyWorkers
         public TState State;
         private Task task;
 
+
+        public delegate void StartedEventHandler(object sender, WorkerEventArgs<TState> args);
+        public event StartedEventHandler Started;
+
+        public delegate void StoppedEventHandler(object sender, WorkerEventArgs<TState> args);
+        public event StoppedEventHandler Stopped;
+
         public Worker(string workerID, Action<Worker<TState>, TState> action, TState state, Action<Worker<TState>, TState> 
                         waitting = null, ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
@@ -48,7 +55,24 @@ namespace TinyWorkers
             this.Action = action;
             this.State = state;
             this.Waitting = waitting;
+            this.WorkerPriority = workerPriority;
         }
+
+        protected virtual void OnStarted()
+        {
+            if(this.Started != null)
+            {
+                this.Started(this, new WorkerEventArgs<TState>(this.State));
+            }
+        } 
+
+        protected virtual void OnStopped()
+        {
+            if(this.Stopped != null)
+            {
+                this.Stopped(this, new WorkerEventArgs<TState>(this.State));
+            }
+        } 
 
         public void Start()
         {
@@ -67,6 +91,9 @@ namespace TinyWorkers
             this.task = Task.Run(() =>
             {
                 Thread.CurrentThread.Priority = this.WorkerPriority;
+                
+                OnStarted();
+
                 while (this.IsRunning)
                 {
                     Action.Invoke(this, State);
@@ -83,12 +110,14 @@ namespace TinyWorkers
 
         }
 
-        public void Stop(int millisecondsTimeout)
+        public void Stop(int millisecondsTimeout = -1)
         {
             this.task.Wait(millisecondsTimeout);
             this.task.Dispose();
             this.task = null;
             this.IsRunning = false;
+
+            OnStopped();
         }
     }
 }
