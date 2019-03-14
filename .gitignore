@@ -1,4 +1,5 @@
 .vs/
+.vscode/
 packages/
 [b|B]in/
 [o|O]bj/
@@ -9,3 +10,4 @@ packages/
 *.log
 *.bak
 *.nupkg
+*.orig
