@@ -119,15 +119,22 @@ namespace TinyWorkers
                     while (!ct.IsCancellationRequested)
                     {
                         Action.Invoke(this, State);
-                        if (Waitting != null)
+
+                        if (!ct.IsCancellationRequested)
                         {
-                            Waitting.Invoke(this, State);
+                            if (Waitting != null)
+                            {
+                                Waitting.Invoke(this, State);
+                            }
+                            else
+                            {
+                                Sleep100.Invoke();
+                            }
                         }
-                        else
-                        {
-                            Sleep100.Invoke();
-                        }
+
                     }
+
+                    ct.WaitHandle.WaitOne();
 
                     this.IsRunning = false;
 
@@ -143,5 +150,6 @@ namespace TinyWorkers
         {
             this.CancellationTokenSource.Cancel();
         }
+
     }
 }
