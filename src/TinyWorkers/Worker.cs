@@ -14,16 +14,16 @@ namespace TinyWorkers
         /// Create multiple workers.
         /// </summary>
         /// <param name="workerCount">Specified number of worker to be created</param>
-        /// <param name="action">Job action</param>
+        /// <param name="job">Job action</param>
         /// <param name="waitting">Waitting action</param>
         /// <param name="workerPriority">Task priority</param>
         /// <returns>A list of workers</returns>
         public static List<Worker<TState>> CreateWorkers(int workerCount,
-                                                    Action<Worker<TState>, TState> action,
+                                                    Action<Worker<TState>, TState> job,
                                                     Action<Worker<TState>, TState> waitting = null,
                                                     ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
-            return CreateWorkers(workerCount, GenerateWorkerId, action, waitting, workerPriority);
+            return CreateWorkers(workerCount, GenerateWorkerId, job, waitting, workerPriority);
         }
 
         /// <summary>
@@ -31,13 +31,13 @@ namespace TinyWorkers
         /// </summary>
         /// <param name="workerCount">Specified number of worker to be created</param>
         /// <param name="workerIdGenerator">A Func which used to generate worker ID</param>
-        /// <param name="action">Job action</param>
+        /// <param name="job">Job action</param>
         /// <param name="waitting">Waitting action</param>
         /// <param name="workerPriority">Task priority</param>
         /// <returns>A list of workers</returns>
         public static List<Worker<TState>> CreateWorkers(int workerCount, 
                                                     Func<int, string> workerIdGenerator,
-                                                    Action<Worker<TState>, TState> action, 
+                                                    Action<Worker<TState>, TState> job, 
                                                     Action<Worker<TState>, TState> waitting = null, 
                                                     ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
@@ -47,7 +47,7 @@ namespace TinyWorkers
             {
                 var workerID = workerIdGenerator(i);
                 var workerState = Activator.CreateInstance<TState>();
-                var worker = new Worker<TState>(workerID, action, workerState, 
+                var worker = new Worker<TState>(workerID, job, workerState, 
                                                 waitting, workerPriority); 
                 result.Add(worker);
             }
@@ -72,7 +72,7 @@ namespace TinyWorkers
         };
 
         public string ID;
-        public Action<Worker<TState>, TState> Action;
+        public Action<Worker<TState>, TState> Job;
         public Action<Worker<TState>, TState> Waitting;
         public ThreadPriority WorkerPriority;
         public bool IsRunning = false;
@@ -91,16 +91,16 @@ namespace TinyWorkers
         /// Create a worker.
         /// </summary>
         /// <param name="workerID">Specified worker ID</param>
-        /// <param name="action">Job action</param>
+        /// <param name="job">Job action</param>
         /// <param name="waitting">Waitting action</param>
         /// <param name="workerPriority">Task priority</param>
         /// <returns>A worker</returns>
-        public Worker(string workerID, Action<Worker<TState>, TState> action, TState state, 
+        public Worker(string workerID, Action<Worker<TState>, TState> job, TState state, 
                         Action<Worker<TState>, TState> waitting = null, 
                         ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
             this.ID = workerID;
-            this.Action = action;
+            this.Job = job;
             this.State = state;
             this.Waitting = waitting;
             this.WorkerPriority = workerPriority;
@@ -156,7 +156,7 @@ namespace TinyWorkers
 
                     while (!ct.IsCancellationRequested)
                     {
-                        Action.Invoke(this, State);
+                        Job.Invoke(this, State);
 
                         if (!ct.IsCancellationRequested)
                         {
