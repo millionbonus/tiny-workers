@@ -10,15 +10,25 @@ namespace TinyWorkers
 {
     public class Worker<TState> where TState: class, new()
     {
-        public static List<Worker<TState>> CreateWorkers(int workNumber, Action<Worker<TState>, TState> action, 
+        public static List<Worker<TState>> CreateWorkers(int workerCount,
+                                                    Action<Worker<TState>, TState> action,
+                                                    Action<Worker<TState>, TState> waitting = null,
+                                                    ThreadPriority workerPriority = ThreadPriority.BelowNormal)
+        {
+            return CreateWorkers(workerCount, GenerateWorkerId, action, waitting, workerPriority);
+        }
+
+        public static List<Worker<TState>> CreateWorkers(int workerCount, 
+                                                    Func<int, string> workerIdGenerator,
+                                                    Action<Worker<TState>, TState> action, 
                                                     Action<Worker<TState>, TState> waitting = null, 
                                                     ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
             var result = new List<Worker<TState>>();
 
-            for (var i = 0; i < workNumber; i++)
+            for (var i = 0; i < workerCount; i++)
             {
-                var workerID = i.ToString();
+                var workerID = workerIdGenerator(i);
                 var workerState = Activator.CreateInstance<TState>();
                 var worker = new Worker<TState>(workerID, action, workerState, 
                                                 waitting, workerPriority); 
@@ -32,6 +42,12 @@ namespace TinyWorkers
         public static Action Sleep100 = () =>
         {
             Thread.Sleep(100);
+        };
+
+        //Default worker id generation fun.
+        public static Func<int, string> GenerateWorkerId = (int number) =>
+        {
+            return number.ToString();
         };
 
         public string ID;
