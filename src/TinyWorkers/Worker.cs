@@ -10,6 +10,14 @@ namespace TinyWorkers
 {
     public class Worker<TState> where TState: class, new()
     {
+        /// <summary>
+        /// Create multiple workers.
+        /// </summary>
+        /// <param name="workerCount">Specified number of worker to be created</param>
+        /// <param name="action">Job action</param>
+        /// <param name="waitting">Waitting action</param>
+        /// <param name="workerPriority">Task priority</param>
+        /// <returns>A list of workers</returns>
         public static List<Worker<TState>> CreateWorkers(int workerCount,
                                                     Action<Worker<TState>, TState> action,
                                                     Action<Worker<TState>, TState> waitting = null,
@@ -18,6 +26,15 @@ namespace TinyWorkers
             return CreateWorkers(workerCount, GenerateWorkerId, action, waitting, workerPriority);
         }
 
+        /// <summary>
+        /// Create multiple workers.
+        /// </summary>
+        /// <param name="workerCount">Specified number of worker to be created</param>
+        /// <param name="workerIdGenerator">A Func which used to generate worker ID</param>
+        /// <param name="action">Job action</param>
+        /// <param name="waitting">Waitting action</param>
+        /// <param name="workerPriority">Task priority</param>
+        /// <returns>A list of workers</returns>
         public static List<Worker<TState>> CreateWorkers(int workerCount, 
                                                     Func<int, string> workerIdGenerator,
                                                     Action<Worker<TState>, TState> action, 
@@ -38,13 +55,17 @@ namespace TinyWorkers
             return result;
         }
 
-        //Default waitting action.
+        /// <summary>
+        /// Default waitting action.
+        /// </summary>
         public static Action Sleep100 = () =>
         {
             Thread.Sleep(100);
         };
 
-        //Default worker id generation fun.
+        /// <summary>
+        /// Default worker id generating func.
+        /// </summary>
         public static Func<int, string> GenerateWorkerId = (int number) =>
         {
             return number.ToString();
@@ -66,6 +87,14 @@ namespace TinyWorkers
         public delegate void StoppedEventHandler(object sender, WorkerEventArgs<TState> args);
         public event StoppedEventHandler Stopped;
 
+        /// <summary>
+        /// Create a worker.
+        /// </summary>
+        /// <param name="workerID">Specified worker ID</param>
+        /// <param name="action">Job action</param>
+        /// <param name="waitting">Waitting action</param>
+        /// <param name="workerPriority">Task priority</param>
+        /// <returns>A worker</returns>
         public Worker(string workerID, Action<Worker<TState>, TState> action, TState state, 
                         Action<Worker<TState>, TState> waitting = null, 
                         ThreadPriority workerPriority = ThreadPriority.BelowNormal)
@@ -78,6 +107,9 @@ namespace TinyWorkers
             this.CancellationTokenSource = new CancellationTokenSource();
         }
 
+        /// <summary>
+        /// Invoke Started event.
+        /// </summary>
         protected virtual void OnStarted()
         {
             if(this.Started != null)
@@ -86,6 +118,9 @@ namespace TinyWorkers
             }
         } 
 
+        /// <summary>
+        /// Invoke Stopped event.
+        /// </summary>
         protected virtual void OnStopped()
         {
             if(this.Stopped != null)
@@ -94,6 +129,9 @@ namespace TinyWorkers
             }
         } 
 
+        /// <summary>
+        /// Start to execute job action repeatedly.
+        /// </summary>
         public void Start()
         {
             var ct = this.CancellationTokenSource.Token;
@@ -146,6 +184,9 @@ namespace TinyWorkers
 
         }
 
+        /// <summary>
+        /// Stop to execute job action.
+        /// </summary>
         public void Stop()
         {
             this.CancellationTokenSource.Cancel();
