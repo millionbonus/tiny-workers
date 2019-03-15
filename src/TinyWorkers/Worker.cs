@@ -20,7 +20,8 @@ namespace TinyWorkers
             {
                 var workerID = i.ToString();
                 var workerState = Activator.CreateInstance<TState>();
-                var worker = new Worker<TState>(workerID, action, workerState, waitting, workerPriority); 
+                var worker = new Worker<TState>(workerID, action, workerState, 
+                                                waitting, workerPriority); 
                 result.Add(worker);
             }
 
@@ -40,6 +41,7 @@ namespace TinyWorkers
         public bool IsRunning = false;
         public TState State;
         private Task task;
+        public CancellationTokenSource CancellationTokenSource = null;
 
 
         public delegate void StartedEventHandler(object sender, WorkerEventArgs<TState> args);
@@ -48,14 +50,16 @@ namespace TinyWorkers
         public delegate void StoppedEventHandler(object sender, WorkerEventArgs<TState> args);
         public event StoppedEventHandler Stopped;
 
-        public Worker(string workerID, Action<Worker<TState>, TState> action, TState state, Action<Worker<TState>, TState> 
-                        waitting = null, ThreadPriority workerPriority = ThreadPriority.BelowNormal)
+        public Worker(string workerID, Action<Worker<TState>, TState> action, TState state, 
+                        Action<Worker<TState>, TState> waitting = null, 
+                        ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
             this.ID = workerID;
             this.Action = action;
             this.State = state;
             this.Waitting = waitting;
             this.WorkerPriority = workerPriority;
+            this.CancellationTokenSource = new CancellationTokenSource();
         }
 
         protected virtual void OnStarted()
@@ -76,48 +80,52 @@ namespace TinyWorkers
 
         public void Start()
         {
-            if (this.IsRunning)
+            var ct = this.CancellationTokenSource.Token;
+
+            if (this.IsRunning || ct.IsCancellationRequested)
             {
                 return;
             }
             this.IsRunning = true;
 
-            if (this.task != null)
+            if(this.task != null)
             {
-                this.task.Dispose();
-                this.task = null;
+                this.task.Start();
             }
-
-            this.task = Task.Run(() =>
+            else
             {
-                Thread.CurrentThread.Priority = this.WorkerPriority;
-                
-                OnStarted();
-
-                while (this.IsRunning)
+                this.task = Task.Run(() =>
                 {
-                    Action.Invoke(this, State);
-                    if (Waitting != null)
+                    Thread.CurrentThread.Priority = this.WorkerPriority;
+                    
+                    OnStarted();
+
+                    while (!ct.IsCancellationRequested)
                     {
-                        Waitting.Invoke(this, State);
+                        Action.Invoke(this, State);
+                        if (Waitting != null)
+                        {
+                            Waitting.Invoke(this, State);
+                        }
+                        else
+                        {
+                            Sleep100.Invoke();
+                        }
                     }
-                    else
-                    {
-                        Sleep100.Invoke();
-                    }
-                }
-            });
+
+                    this.IsRunning = false;
+
+                    OnStopped();
+
+                }, ct);
+
+            }
 
         }
 
-        public void Stop(int millisecondsTimeout = -1)
+        public void Stop()
         {
-            this.task.Wait(millisecondsTimeout);
-            this.task.Dispose();
-            this.task = null;
-            this.IsRunning = false;
-
-            OnStopped();
+            this.CancellationTokenSource.Cancel();
         }
     }
 }

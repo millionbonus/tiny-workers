@@ -41,12 +41,12 @@ namespace TestConsole
                 state.ActionTime = DateTime.Now;
                 state.ComputedData = Guid.NewGuid().ToString();
 
-                Console.WriteLine($"worker - {worker.ID} does the job -- {state.ComputedData} | {state.Count} | {state.ActionTime.ToString("HH:mm:ss")}");
+                Console.WriteLine($"worker[{worker.ID}] does the job -- {state.ComputedData} | {state.Count} | {state.ActionTime.ToString("HH:mm:ss")}");
 
                 //Stop after 10 times calculation.
                 if (state.Count >= 10)
                 {
-                    worker.Stop(100);
+                    worker.Stop();
                 }
 
             });
@@ -61,9 +61,9 @@ namespace TestConsole
                 // Just do things there...
                 worker.Waitting = (w, s) =>
                 {
-                    Console.WriteLine($"worker - {w.ID} does something else while waitting...");
+                    Console.WriteLine($"worker[{w.ID}] does something else while waitting...");
 
-                    Thread.Sleep(1000 * 1);
+                    Thread.Sleep(1000 * 3);
                 };
 
                 // Setup state
