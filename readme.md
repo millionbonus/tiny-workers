@@ -1,6 +1,6 @@
 # TinyWorkers #
 
-TinyWorkers is a library which help you create mulitthreaded program.
+TinyWorkers is a library which help you to create mulitthreaded program.
 
 ## License ##
 
