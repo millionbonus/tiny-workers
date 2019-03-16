@@ -10,36 +10,75 @@ namespace TinyWorkers
 {
     public class Worker<TState> where TState: class, new()
     {
-        public static List<Worker<TState>> CreateWorkers(int workNumber, Action<Worker<TState>, TState> action, 
+        /// <summary>
+        /// Create multiple workers.
+        /// </summary>
+        /// <param name="workerCount">Specified number of worker to be created</param>
+        /// <param name="job">Job action</param>
+        /// <param name="waitting">Waitting action</param>
+        /// <param name="workerPriority">Task priority</param>
+        /// <returns>A list of workers</returns>
+        public static List<Worker<TState>> CreateWorkers(int workerCount,
+                                                    Action<Worker<TState>, TState> job,
+                                                    Action<Worker<TState>, TState> waitting = null,
+                                                    ThreadPriority workerPriority = ThreadPriority.BelowNormal)
+        {
+            return CreateWorkers(workerCount, GenerateWorkerId, job, waitting, workerPriority);
+        }
+
+        /// <summary>
+        /// Create multiple workers.
+        /// </summary>
+        /// <param name="workerCount">Specified number of worker to be created</param>
+        /// <param name="workerIdGenerator">A Func which used to generate worker ID</param>
+        /// <param name="job">Job action</param>
+        /// <param name="waitting">Waitting action</param>
+        /// <param name="workerPriority">Task priority</param>
+        /// <returns>A list of workers</returns>
+        public static List<Worker<TState>> CreateWorkers(int workerCount, 
+                                                    Func<int, string> workerIdGenerator,
+                                                    Action<Worker<TState>, TState> job, 
                                                     Action<Worker<TState>, TState> waitting = null, 
                                                     ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
             var result = new List<Worker<TState>>();
 
-            for (var i = 0; i < workNumber; i++)
+            for (var i = 0; i < workerCount; i++)
             {
-                var workerID = i.ToString();
+                var workerID = workerIdGenerator(i);
                 var workerState = Activator.CreateInstance<TState>();
-                var worker = new Worker<TState>(workerID, action, workerState, waitting, workerPriority); 
+                var worker = new Worker<TState>(workerID, job, workerState, 
+                                                waitting, workerPriority); 
                 result.Add(worker);
             }
 
             return result;
         }
 
-        //Default waitting action.
+        /// <summary>
+        /// Default waitting action.
+        /// </summary>
         public static Action Sleep100 = () =>
         {
             Thread.Sleep(100);
         };
 
+        /// <summary>
+        /// Default worker id generating func.
+        /// </summary>
+        public static Func<int, string> GenerateWorkerId = (int number) =>
+        {
+            return number.ToString();
+        };
+
         public string ID;
-        public Action<Worker<TState>, TState> Action;
+        public Action<Worker<TState>, TState> Job;
         public Action<Worker<TState>, TState> Waitting;
         public ThreadPriority WorkerPriority;
         public bool IsRunning = false;
         public TState State;
         private Task task;
+        public CancellationTokenSource CancellationTokenSource = null;
 
 
         public delegate void StartedEventHandler(object sender, WorkerEventArgs<TState> args);
@@ -48,16 +87,29 @@ namespace TinyWorkers
         public delegate void StoppedEventHandler(object sender, WorkerEventArgs<TState> args);
         public event StoppedEventHandler Stopped;
 
-        public Worker(string workerID, Action<Worker<TState>, TState> action, TState state, Action<Worker<TState>, TState> 
-                        waitting = null, ThreadPriority workerPriority = ThreadPriority.BelowNormal)
+        /// <summary>
+        /// Create a worker.
+        /// </summary>
+        /// <param name="workerID">Specified worker ID</param>
+        /// <param name="job">Job action</param>
+        /// <param name="waitting">Waitting action</param>
+        /// <param name="workerPriority">Task priority</param>
+        /// <returns>A worker</returns>
+        public Worker(string workerID, Action<Worker<TState>, TState> job, TState state, 
+                        Action<Worker<TState>, TState> waitting = null, 
+                        ThreadPriority workerPriority = ThreadPriority.BelowNormal)
         {
             this.ID = workerID;
-            this.Action = action;
+            this.Job = job;
             this.State = state;
             this.Waitting = waitting;
             this.WorkerPriority = workerPriority;
+            this.CancellationTokenSource = new CancellationTokenSource();
         }
 
+        /// <summary>
+        /// Invoke Started event.
+        /// </summary>
         protected virtual void OnStarted()
         {
             if(this.Started != null)
@@ -66,6 +118,9 @@ namespace TinyWorkers
             }
         } 
 
+        /// <summary>
+        /// Invoke Stopped event.
+        /// </summary>
         protected virtual void OnStopped()
         {
             if(this.Stopped != null)
@@ -74,50 +129,68 @@ namespace TinyWorkers
             }
         } 
 
+        /// <summary>
+        /// Start to execute job action repeatedly.
+        /// </summary>
         public void Start()
         {
-            if (this.IsRunning)
+            var ct = this.CancellationTokenSource.Token;
+
+            if (this.IsRunning || ct.IsCancellationRequested)
             {
                 return;
             }
             this.IsRunning = true;
 
-            if (this.task != null)
+            if(this.task != null)
             {
-                this.task.Dispose();
-                this.task = null;
+                this.task.Start();
+            }
+            else
+            {
+                this.task = Task.Run(() =>
+                {
+                    Thread.CurrentThread.Priority = this.WorkerPriority;
+                    
+                    OnStarted();
+
+                    while (!ct.IsCancellationRequested)
+                    {
+                        Job.Invoke(this, State);
+
+                        if (!ct.IsCancellationRequested)
+                        {
+                            if (Waitting != null)
+                            {
+                                Waitting.Invoke(this, State);
+                            }
+                            else
+                            {
+                                Sleep100.Invoke();
+                            }
+                        }
+
+                    }
+
+                    ct.WaitHandle.WaitOne();
+
+                    this.IsRunning = false;
+
+                    OnStopped();
+
+                }, ct);
+
             }
 
-            this.task = Task.Run(() =>
-            {
-                Thread.CurrentThread.Priority = this.WorkerPriority;
-                
-                OnStarted();
-
-                while (this.IsRunning)
-                {
-                    Action.Invoke(this, State);
-                    if (Waitting != null)
-                    {
-                        Waitting.Invoke(this, State);
-                    }
-                    else
-                    {
-                        Sleep100.Invoke();
-                    }
-                }
-            });
-
         }
 
-        public void Stop(int millisecondsTimeout = -1)
+        /// <summary>
+        /// Stop to execute job action.
+        /// </summary>
+        public void Stop()
         {
-            this.task.Wait(millisecondsTimeout);
-            this.task.Dispose();
-            this.task = null;
-            this.IsRunning = false;
-
-            OnStopped();
+            this.CancellationTokenSource.Cancel();
         }
+
     }
 }
