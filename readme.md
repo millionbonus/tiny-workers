@@ -44,7 +44,6 @@ start --> **action** --> **waiting**  ---> end
 All you need to do is defining the action and state (if need).
 Then start the worker.
 
-For example:
 ``` csharp
 
     // 1. Define state
