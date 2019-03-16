@@ -14,6 +14,7 @@
     <FileVersion>1.1.0.0</FileVersion>
     <Company />
     <PackageProjectUrl>https://tinyworks.digideas.com/</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/millionbonus/tinyworkers</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Copyright>Copyright (C) 2018 Edison Chuang</Copyright>
